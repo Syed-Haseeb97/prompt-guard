@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prompt-guard.dev/schemas/config-1.0.json",
+  "title": "prompt-guard configuration",
+  "description": "The prompt-guard.config.json file.",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "suites": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string" },
+              "name": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "outputDir": { "type": "string" },
+    "providers": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/provider" }
+    },
+    "defaultProvider": { "type": "string" },
+    "defaultModel": { "type": "string" },
+    "concurrency": { "type": "integer", "minimum": 1, "maximum": 256 },
+    "timeoutMs": { "type": "integer", "minimum": 1 },
+    "retries": { "type": "integer", "minimum": 0, "maximum": 10 },
+    "defaultAssertions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/assertion" }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": { "enum": ["json", "junit"] }
+        },
+        "keepRuns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Maps template variable names to environment variable names."
+    },
+    "color": { "enum": ["auto", "always", "never"] },
+    "bail": { "type": "boolean" }
+  },
+  "definitions": {
+    "provider": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["mock", "openai", "anthropic", "http", "echo"] },
+        "model": { "type": "string" },
+        "baseUrl": { "type": "string" },
+        "apiKeyEnv": { "type": "string" },
+        "apiKey": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "timeoutMs": { "type": "integer", "minimum": 1 },
+        "temperature": { "type": "number" },
+        "maxTokens": { "type": "integer", "minimum": 1 },
+        "systemPrompt": { "type": "string" },
+        "responsePath": { "type": "string" },
+        "requestTemplate": { "type": "object" },
+        "retries": { "type": "integer", "minimum": 0 },
+        "mock": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["hash", "echo", "rules"] },
+            "seed": { "type": "string" },
+            "defaultResponse": { "type": "string" },
+            "latencyMs": { "type": "integer", "minimum": 0 },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "match": { "type": "string" },
+                  "fixtureId": { "type": "string" },
+                  "response": { "type": "string" },
+                  "json": {},
+                  "caseInsensitive": { "type": "boolean" }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["fixtureId", "message"],
+                "additionalProperties": false,
+                "properties": {
+                  "fixtureId": { "type": "string" },
+                  "message": { "type": "string" },
+                  "status": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["semantic", "regex", "jsonSchema", "keywords", "contains", "length", "custom"]
+        },
+        "name": { "type": "string" },
+        "severity": { "enum": ["error", "warn"] },
+        "enabled": { "type": "boolean" }
+      }
+    }
+  }
+}

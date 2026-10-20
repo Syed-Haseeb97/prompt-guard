@@ -1,0 +1,26 @@
+{
+  "$schema": "./schemas/benchmark-1.0.json",
+  "name": "local-ollama",
+  "description": "Benchmark against a local Ollama server. Start it with `ollama serve` and pull a model first.",
+  "suites": ["suites/**/*.suite.json"],
+  "providers": {
+    "ollama": {
+      "kind": "openai",
+      "model": "llama3.1",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "apiKeyEnv": "OLLAMA_API_KEY",
+      "timeoutMs": 60000,
+      "temperature": 0
+    }
+  },
+  "defaultProvider": "ollama",
+  "model": "llama3.1",
+  "thresholds": {
+    "passRate": 0.8,
+    "maxFailures": 3
+  },
+  "budgets": {
+    "maxDurationMs": 600000,
+    "maxCaseDurationMs": 120000
+  }
+}

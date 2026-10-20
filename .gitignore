@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# prompt-guard artefacts
+.prompt-guard/
+coverage/
+
+# Environment
+.env
+.env.local
+
+# Editors & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

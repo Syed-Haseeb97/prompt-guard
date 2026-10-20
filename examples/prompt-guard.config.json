@@ -1,0 +1,32 @@
+{
+  "$schema": "./schemas/config-1.0.json",
+  "version": 1,
+  "suites": [
+    { "path": "suites/**/*.suite.json" }
+  ],
+  "outputDir": ".prompt-guard/runs",
+  "providers": {
+    "mock": {
+      "kind": "mock",
+      "model": "mock-deterministic-v1",
+      "mock": {
+        "mode": "hash",
+        "seed": "prompt-guard-examples"
+      }
+    }
+  },
+  "defaultProvider": "mock",
+  "defaultModel": "mock-deterministic-v1",
+  "concurrency": 4,
+  "timeoutMs": 30000,
+  "retries": 1,
+  "defaultAssertions": [
+    { "type": "length", "name": "response is not empty", "min": 1, "max": 20000, "unit": "chars" }
+  ],
+  "report": {
+    "formats": ["json", "junit"],
+    "keepRuns": 20
+  },
+  "color": "auto",
+  "bail": false
+}

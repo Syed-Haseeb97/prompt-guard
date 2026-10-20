@@ -1,0 +1,29 @@
+{
+  "$schema": "../schemas/benchmark-1.0.json",
+  "name": "examples",
+  "description": "Benchmark for the bundled example suites. Runs against the deterministic mock provider so it is reproducible offline.",
+  "suites": ["suites/**/*.suite.json"],
+  "providers": {
+    "mock": {
+      "kind": "mock",
+      "model": "mock-deterministic-v1",
+      "mock": { "mode": "hash", "seed": "prompt-guard-examples" }
+    }
+  },
+  "defaultProvider": "mock",
+  "model": "mock-deterministic-v1",
+  "thresholds": {
+    "passRate": 1,
+    "maxFailures": 0,
+    "maxErrors": 0,
+    "byTag": {
+      "safety": 1,
+      "billing": 1
+    }
+  },
+  "budgets": {
+    "maxDurationMs": 30000,
+    "maxCaseDurationMs": 5000
+  },
+  "requiredTags": ["safety"]
+}

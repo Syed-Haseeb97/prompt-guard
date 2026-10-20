@@ -1,0 +1,103 @@
+{
+  "$schema": "../../schemas/suite-1.0.json",
+  "name": "summarizer",
+  "description": "Regression suite for a long-document summarisation prompt.",
+  "version": 2,
+  "defaults": {
+    "system": "You are a precise summarisation assistant. Never invent facts.",
+    "assertions": [
+      { "type": "length", "name": "response is not empty", "min": 1, "max": 4000, "unit": "chars" }
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "three-bullet-summary",
+      "title": "Produces exactly three bullets",
+      "tags": ["summary", "structure"],
+      "prompt": "Summarise the following release note in exactly three bullet points:\n\n{{releaseNote}}",
+      "variables": {
+        "releaseNote": "Version 2.1 adds offline sync, fixes a crash on export and improves startup time by 30%."
+      },
+      "frozenOutput": "- Offline sync is now supported.\n- Export no longer crashes on large files.\n- Startup time improved by 30%.",
+      "assertions": [
+        {
+          "type": "semantic",
+          "name": "mentions every key point of the note",
+          "expected": [
+            "mentions offline sync, the export crash fix and the startup improvement",
+            "lists offline sync, a fix for the export crash and a 30% faster startup"
+          ],
+          "threshold": 0.3,
+          "minTermCoverage": 0.5
+        },
+        {
+          "type": "regex",
+          "name": "has three bullet points",
+          "pattern": "^-\\s+\\S",
+          "flags": "gm"
+        },
+        {
+          "type": "keywords",
+          "name": "does not promise anything",
+          "prohibited": ["guarantee", "always", "never fails"]
+        }
+      ]
+    },
+    {
+      "id": "json-output",
+      "title": "Returns a JSON object with a headline and bullets",
+      "tags": ["summary", "json"],
+      "prompt": "Return a JSON object with a \"headline\" string and a \"bullets\" array of strings.",
+      "frozenOutput": "{\n  \"headline\": \"Version 2.1 release summary\",\n  \"bullets\": [\n    \"Offline sync added\",\n    \"Export crash fixed\",\n    \"Startup 30% faster\"\n  ]\n}",
+      "assertions": [
+        {
+          "type": "jsonSchema",
+          "name": "matches the summary schema",
+          "extract": "auto",
+          "schema": {
+            "type": "object",
+            "required": ["headline", "bullets"],
+            "additionalProperties": false,
+            "properties": {
+              "headline": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "bullets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuses-to-hallucinate",
+      "title": "Refuses to answer when the source is missing",
+      "tags": ["summary", "safety", "hallucination"],
+      "prompt": "Summarise the quarterly report that was never attached.",
+      "frozenOutput": "I don't have the quarterly report. Please attach the document and I will summarise it.",
+      "assertions": [
+        {
+          "type": "semantic",
+          "name": "asks for the missing document",
+          "mode": "notSimilar",
+          "expected": "Q3 revenue grew 12% to 4.2M and churn fell to 1.8%.",
+          "maxSimilarity": 0.3
+        },
+        {
+          "type": "keywords",
+          "name": "does not fabricate figures",
+          "anyOf": ["attach", "provide", "upload", "don't have", "do not have"],
+          "prohibited": ["12%", "4.2M", "1.8%"]
+        },
+        {
+          "type": "length",
+          "name": "stays under 200 characters",
+          "max": 200,
+          "unit": "chars"
+        }
+      ]
+    }
+  ]
+}

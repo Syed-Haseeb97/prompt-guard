@@ -1,0 +1,31 @@
+{
+  "$schema": "./schemas/benchmark-1.0.json",
+  "name": "baseline",
+  "description": "Deterministic baseline benchmark. Runs the mock provider so the benchmark is reproducible offline and in CI.",
+  "suites": ["suites/**/*.suite.json"],
+  "providers": {
+    "mock": {
+      "kind": "mock",
+      "model": "mock-deterministic-v1",
+      "mock": {
+        "mode": "hash",
+        "seed": "prompt-guard-baseline"
+      }
+    }
+  },
+  "defaultProvider": "mock",
+  "model": "mock-deterministic-v1",
+  "thresholds": {
+    "passRate": 0.95,
+    "maxFailures": 0,
+    "maxErrors": 0,
+    "byTag": {
+      "smoke": 1
+    }
+  },
+  "budgets": {
+    "maxDurationMs": 60000,
+    "maxCaseDurationMs": 10000
+  },
+  "requiredTags": ["smoke"]
+}

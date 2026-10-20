@@ -1,0 +1,38 @@
+{
+  "$schema": "./schemas/benchmark-1.0.json",
+  "name": "production-model",
+  "description": "Benchmark pinned to a production model. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) before running.",
+  "suites": ["suites/**/*.suite.json"],
+  "providers": {
+    "openai": {
+      "kind": "openai",
+      "model": "gpt-4o-mini",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "timeoutMs": 30000,
+      "temperature": 0,
+      "maxTokens": 1024
+    },
+    "anthropic": {
+      "kind": "anthropic",
+      "model": "claude-3-5-sonnet-latest",
+      "baseUrl": "https://api.anthropic.com/v1",
+      "apiKeyEnv": "ANTHROPIC_API_KEY",
+      "timeoutMs": 30000,
+      "temperature": 0,
+      "maxTokens": 1024
+    }
+  },
+  "defaultProvider": "openai",
+  "model": "gpt-4o-mini",
+  "thresholds": {
+    "passRate": 0.9,
+    "maxFailures": 2,
+    "maxErrors": 0,
+    "maxRegressions": 0
+  },
+  "budgets": {
+    "maxDurationMs": 300000,
+    "maxCaseDurationMs": 30000
+  }
+}
