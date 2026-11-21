@@ -65,10 +65,11 @@ export async function listFiles(dir: string, filter?: (file: string) => boolean)
 export async function expandGlob(pattern: string, cwd: string): Promise<string[]> {
   const normalized = pattern.replace(/\\/g, '/');
   const absolute = path.isAbsolute(normalized)
-    ? normalized
-    : path.join(cwd, normalized);
+    ? path.resolve(normalized)
+    : path.resolve(cwd, normalized);
   // Always work with forward slashes so the segment split is platform agnostic.
   const forward = absolute.replace(/\\/g, '/');
+  const isPosixRoot = forward.startsWith('/');
   const segments = forward.split('/').filter((s) => s.length > 0);
 
   // Find the longest leading literal prefix.
@@ -77,7 +78,9 @@ export async function expandGlob(pattern: string, cwd: string): Promise<string[]
     if (/[*?[\]]/.test(segment)) break;
     literal.push(segment);
   }
-  const base = literal.length > 0 ? literal.join('/') : cwd.replace(/\\/g, '/');
+  const base = literal.length > 0
+    ? (isPosixRoot ? `/${literal.join('/')}` : literal.join('/'))
+    : path.resolve(cwd);
   const rest = segments.slice(literal.length);
 
   if (rest.length === 0) {
@@ -86,12 +89,10 @@ export async function expandGlob(pattern: string, cwd: string): Promise<string[]
 
   const files = await listFiles(base);
   const regex = globToRegExp(rest.join('/'));
-  const baseNormalized = path.resolve(base).split(path.sep).join('/');
+  const resolvedBase = path.resolve(base);
+
   return files.filter((file) => {
-    const fileNormalized = path.resolve(file).split(path.sep).join('/');
-    const rel = fileNormalized.startsWith(baseNormalized)
-      ? fileNormalized.slice(baseNormalized.length).replace(/^\/+/, '')
-      : fileNormalized;
+    const rel = path.relative(resolvedBase, path.resolve(file)).replace(/\\/g, '/');
     return regex.test(rel);
   });
 }
