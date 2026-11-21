@@ -10,21 +10,13 @@ import type {
 } from '../core/types.js';
 import { expandGlob, readJsonFile } from '../utils/fs.js';
 import { hashObject } from '../utils/hash.js';
+import { assertionSchema } from '../core/config.js';
 
 const messageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
   content: z.string(),
   name: z.string().optional(),
 });
-
-const assertionSchema = z
-  .object({
-    type: z.enum(['semantic', 'regex', 'jsonSchema', 'keywords', 'contains', 'length', 'custom']),
-    name: z.string().optional(),
-    severity: z.enum(['error', 'warn']).optional(),
-    enabled: z.boolean().optional(),
-  })
-  .passthrough();
 
 const fixtureSchema = z
   .object({

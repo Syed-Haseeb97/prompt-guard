@@ -3,25 +3,9 @@ import { z } from 'zod';
 import { ConfigError } from './errors.js';
 import type { ProviderConfig } from './types.js';
 import { pathExists, readJsonFile } from '../utils/fs.js';
+import { providerConfigSchema } from './config.js';
 
 export const BENCHMARK_FILE_SUFFIX = '.benchmark.json';
-
-const providerSchema = z.object({
-  kind: z.enum(['mock', 'openai', 'anthropic', 'http', 'echo']),
-  model: z.string().optional(),
-  baseUrl: z.string().optional(),
-  apiKeyEnv: z.string().optional(),
-  apiKey: z.string().optional(),
-  headers: z.record(z.string()).optional(),
-  timeoutMs: z.number().int().positive().optional(),
-  temperature: z.number().optional(),
-  maxTokens: z.number().int().positive().optional(),
-  systemPrompt: z.string().optional(),
-  responsePath: z.string().optional(),
-  requestTemplate: z.record(z.unknown()).optional(),
-  retries: z.number().int().min(0).optional(),
-  mock: z.record(z.unknown()).optional(),
-});
 
 export const benchmarkSchema = z
   .object({
@@ -31,7 +15,7 @@ export const benchmarkSchema = z
     /** Suite files (or globs) covered by this benchmark. */
     suites: z.array(z.string()).default([]),
     /** Providers used by the benchmark. */
-    providers: z.record(providerSchema).default({}),
+    providers: z.record(providerConfigSchema).default({}),
     /** Provider used when a fixture does not name one. */
     defaultProvider: z.string().optional(),
     /** Model pinned by the benchmark. */

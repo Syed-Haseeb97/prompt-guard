@@ -12,7 +12,7 @@ export const CONFIG_FILE_NAMES = [
 
 export const DEFAULT_CONFIG_FILE = 'prompt-guard.config.json';
 
-const providerSchema = z
+export const providerConfigSchema = z
   .object({
     kind: z.enum(['mock', 'openai', 'anthropic', 'http', 'echo']),
     model: z.string().optional(),
@@ -58,7 +58,7 @@ const providerSchema = z
   })
   .strict();
 
-const assertionSchema = z
+export const assertionSchema = z
   .object({
     type: z.enum(['semantic', 'regex', 'jsonSchema', 'keywords', 'contains', 'length', 'custom']),
     name: z.string().optional(),
@@ -80,7 +80,7 @@ const configSchema = z
       )
       .default([]),
     outputDir: z.string().default('.prompt-guard/runs'),
-    providers: z.record(providerSchema).default({}),
+    providers: z.record(providerConfigSchema).default({}),
     defaultProvider: z.string().default('mock'),
     defaultModel: z.string().optional(),
     concurrency: z.number().int().positive().max(256).default(4),
@@ -173,6 +173,11 @@ export function validateConfig(raw: unknown, source = '<inline>'): PromptGuardCo
     );
   }
   for (const [name, provider] of Object.entries(config.providers)) {
+    if (provider.apiKey) {
+      warnings.push(
+        `provider "${name}" has an inline apiKey configured. Storing credentials in config files is discouraged; consider using "apiKeyEnv" instead to avoid accidental credential leaks.`,
+      );
+    }
     if (provider.apiKeyEnv && !process.env[provider.apiKeyEnv]) {
       warnings.push(
         `provider "${name}" expects env var ${provider.apiKeyEnv}, which is not set.`,
@@ -226,14 +231,8 @@ export async function loadConfig(
 }
 
 function mergeWithEnv(config: PromptGuardConfig, rootDir: string): PromptGuardConfig {
-  const envOverrides = { ...config.env };
-  for (const [key, envName] of Object.entries(envOverrides)) {
-    const value = process.env[envName];
-    if (value !== undefined) envOverrides[key] = value;
-  }
   return {
     ...config,
-    env: envOverrides,
     outputDir: path.isAbsolute(config.outputDir)
       ? config.outputDir
       : path.join(rootDir, config.outputDir),

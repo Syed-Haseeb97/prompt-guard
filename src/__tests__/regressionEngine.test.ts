@@ -202,6 +202,7 @@ describe('RegressionEngine', () => {
     });
     await engine.run();
     expect(events).toContain('run-start');
+    expect(events).toContain('case-start');
     expect(events).toContain('case-end');
     expect(events).toContain('run-end');
   });

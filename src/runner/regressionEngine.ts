@@ -24,6 +24,7 @@ import { hashObject, shortHash } from '../utils/hash.js';
 import { generateRunId } from '../utils/id.js';
 import { createProvider } from './providers/index.js';
 import { applyDefaults, normalizePrompt } from './suiteLoader.js';
+import { VERSION } from '../version.js';
 import { renderTemplate } from './template.js';
 import { runAssertions } from './assertions/index.js';
 import type { AssertionContext, CustomValidator, EmbeddingFunction } from './assertions/types.js';
@@ -354,6 +355,7 @@ export class RegressionEngine {
             temperature: providerName ? this.config.providers[providerName]?.temperature : undefined,
             maxTokens: providerName ? this.config.providers[providerName]?.maxTokens : undefined,
             timeoutMs: resolved.timeoutMs,
+            mockResponse: resolved.mockResponse,
           },
           resolved.retries ?? 0,
           resolved.timeoutMs ?? 30_000,
@@ -434,7 +436,25 @@ export class RegressionEngine {
       for (const fixture of suite.fixtures) {
         if (!matchesFilters(fixture, this.options.filters)) continue;
         count += 1;
-        tasks.push(() => this.runFixture(suite, fixture));
+        tasks.push(async () => {
+          onProgress?.({
+            type: 'case-start',
+            suite: suite.name,
+            id: fixture.id,
+            title: fixture.title,
+          });
+          const result = await this.runFixture(suite, fixture);
+          onProgress?.({
+            type: 'case-end',
+            suite: result.suite,
+            id: result.id,
+            title: result.title,
+            status: result.status,
+            durationMs: result.durationMs,
+            result,
+          });
+          return result;
+        });
       }
       selectedSuites.push({ suite, count });
     }
@@ -456,15 +476,6 @@ export class RegressionEngine {
         cursor += 1;
         if (!result) continue;
         ordered.push(result);
-        onProgress?.({
-          type: 'case-end',
-          suite: result.suite,
-          id: result.id,
-          title: result.title,
-          status: result.status,
-          durationMs: result.durationMs,
-          result,
-        });
       }
     }
 
@@ -512,7 +523,7 @@ export class RegressionEngine {
       totals,
       summary: buildSummary(ordered, totals),
       results: ordered,
-      environment: collectEnvironment(this.options.cwd ?? process.cwd(), '1.0.0'),
+      environment: collectEnvironment(this.options.cwd ?? process.cwd(), VERSION),
     };
 
     onProgress?.({ type: 'run-end', report });

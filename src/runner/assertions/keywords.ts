@@ -1,10 +1,7 @@
 import type { KeywordsAssertion } from '../../core/types.js';
 import type { AssertionResult } from '../../core/types.js';
 import type { AssertionContext, AssertionValidator } from './types.js';
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+import { escapeRegExp } from '../../utils/text.js';
 
 /**
  * Find a keyword in a text.

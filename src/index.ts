@@ -33,4 +33,4 @@ export { runCompareCommand, compareOptionsFromArgs } from './cli/commands/compar
 export { parseArgs, flagBoolean, flagList, flagNumber, flagString } from './cli/args.js';
 export { createOutputStyler, renderCaseLine, renderFailures, renderSummary } from './cli/output.js';
 
-export const VERSION = '1.0.0';
+export * from './version.js';

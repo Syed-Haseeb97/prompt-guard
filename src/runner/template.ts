@@ -42,7 +42,4 @@ export function renderTemplate(
   return { text, missing, used };
 }
 
-/** Escape a string so it can be embedded in a RegExp. */
-export function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+export { escapeRegExp } from '../utils/text.js';

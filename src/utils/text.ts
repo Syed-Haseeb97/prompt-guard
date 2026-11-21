@@ -179,3 +179,8 @@ export function estimateTokens(text: string, tokenRatio = 4): number {
   const wordBased = countWords(text);
   return Math.max(charBased, wordBased);
 }
+
+/** Escape a string so it can be embedded in a RegExp safely. */
+export function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

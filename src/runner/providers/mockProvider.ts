@@ -97,7 +97,9 @@ export class MockProvider implements Provider {
     let raw: unknown;
 
     const rule = mode === 'rules' ? this.findRule(request) : undefined;
-    if (rule) {
+    if (request.mockResponse !== undefined) {
+      text = request.mockResponse;
+    } else if (rule) {
       if (rule.json !== undefined) {
         raw = rule.json;
         text = typeof rule.json === 'string' ? rule.json : JSON.stringify(rule.json, null, 2);

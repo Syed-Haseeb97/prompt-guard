@@ -13,6 +13,16 @@
     "testing"
   ],
   "license": "MIT",
+  "author": "Syed Haseeb <syed424892@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Syed-Haseeb97/prompt-guard.git"
+  },
+  "homepage": "https://github.com/Syed-Haseeb97/prompt-guard#readme",
+  "bugs": {
+    "url": "https://github.com/Syed-Haseeb97/prompt-guard/issues"
+  },
+  "sideEffects": false,
   "type": "module",
   "engines": {
     "node": ">=18.17.0"
@@ -26,10 +36,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./schemas/*": "./schemas/*"
   },
   "files": [
     "dist",
+    "schemas",
     "README.md",
     "LICENSE"
   ],

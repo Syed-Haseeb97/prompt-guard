@@ -10,7 +10,7 @@ import { runRunCommand } from './commands/run.js';
 import { compareOptionsFromArgs, runCompareCommand } from './commands/compare.js';
 import type { OutputContext } from './output.js';
 
-const VERSION = '1.0.0';
+import { VERSION } from '../version.js';
 
 const HELP = `
 prompt-guard ${VERSION} — regression testing and guardrails for LLM prompts

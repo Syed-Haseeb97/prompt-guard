@@ -1,5 +1,10 @@
 # prompt-guard
 
+[![CI](https://github.com/Syed-Haseeb97/prompt-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/Syed-Haseeb97/prompt-guard/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/prompt-guard.svg)](https://www.npmjs.com/package/prompt-guard)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests: 241 passed](https://img.shields.io/badge/tests-241%20passed-brightgreen.svg)](https://github.com/Syed-Haseeb97/prompt-guard)
+
 **Regression testing and guardrails for LLM prompts.**
 
 `prompt-guard` turns your prompts into a test suite. It replays saved prompt
@@ -68,13 +73,24 @@ CI without spending a cent.
 ## Install
 
 ```bash
-# from a checkout
+# Global CLI installation
+npm install -g prompt-guard
+
+# Or add to your existing project
+npm install -D prompt-guard
+
+# Or run directly via npx
+npx prompt-guard run
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/Syed-Haseeb97/prompt-guard.git
+cd prompt-guard
 npm install
 npm run build
-npm link            # optional: puts `prompt-guard` on your PATH
-
-# or run without installing
-npx tsx src/cli/index.ts run
+npm link            # optional: links `prompt-guard` globally
 ```
 
 Requires **Node.js >= 18.17**.
@@ -935,7 +951,7 @@ src/
 │       ├── jsonReport.ts        # JSON + JUnit artefacts
 │       └── compare.ts           # comparison engine
 ├── utils/                       # hash, text, fs, ansi, async, id
-└── __tests__/                   # 200 unit and integration tests
+└── __tests__/                   # 241 unit and integration tests
 ```
 
 Design notes:

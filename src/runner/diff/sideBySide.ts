@@ -28,13 +28,6 @@ function toTokens(segments: DiffSegment[]): DiffToken[] {
   return tokens;
 }
 
-interface ChangeGroup {
-  /** Unchanged words that lead the group (context). */
-  context: string[];
-  removed: string[];
-  inserted: string[];
-}
-
 /**
  * Turn a word-level diff into aligned rows suitable for a side-by-side view.
  *
@@ -293,8 +286,8 @@ export function renderSideBySide(
     }
 
     lines.push(
-      `${BOX.vertical} ${padVisible(line.left, leftWidth)} ${BOX.vertical} ${padVisible(
-        line.right,
+      `${BOX.vertical} ${padVisible(leftCell, leftWidth)} ${BOX.vertical} ${padVisible(
+        rightCell,
         rightWidth,
       )} ${BOX.vertical}`,
     );

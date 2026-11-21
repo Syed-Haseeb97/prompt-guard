@@ -95,6 +95,8 @@ export interface ProviderRequest {
   timeoutMs?: number;
   signal?: AbortSignal;
   metadata?: Record<string, unknown>;
+  /** Static response override for mock providers. */
+  mockResponse?: string;
 }
 
 export interface ProviderResponse {

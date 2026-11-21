@@ -11,6 +11,8 @@ export interface LoggerOptions {
   prefix?: string;
   /** Suppress all output. */
   silent?: boolean;
+  /** Shared diagnostics array. */
+  diagnostics?: Diagnostic[];
 }
 
 const LEVEL_ORDER: Record<DiagnosticLevel, number> = { info: 0, warn: 1, error: 2 };
@@ -21,13 +23,14 @@ export class Logger {
   private readonly level: DiagnosticLevel;
   private readonly prefix: string;
   private readonly silent: boolean;
-  readonly diagnostics: Diagnostic[] = [];
+  readonly diagnostics: Diagnostic[];
 
   constructor(options: LoggerOptions = {}) {
     this.sink = options.sink ?? ((line) => process.stdout.write(`${line}\n`));
     this.level = options.level ?? 'info';
     this.prefix = options.prefix ?? '';
     this.silent = options.silent ?? false;
+    this.diagnostics = options.diagnostics ?? [];
   }
 
   /** Create a child logger that records diagnostics into the parent as well. */
@@ -37,6 +40,7 @@ export class Logger {
       level: this.level,
       prefix: this.prefix ? `${this.prefix}${prefix}` : prefix,
       silent: this.silent,
+      diagnostics: this.diagnostics,
     });
     return child;
   }

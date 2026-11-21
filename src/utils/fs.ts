@@ -86,7 +86,14 @@ export async function expandGlob(pattern: string, cwd: string): Promise<string[]
 
   const files = await listFiles(base);
   const regex = globToRegExp(rest.join('/'));
-  return files.filter((file) => regex.test(file.split(path.sep).join('/')));
+  const baseNormalized = path.resolve(base).split(path.sep).join('/');
+  return files.filter((file) => {
+    const fileNormalized = path.resolve(file).split(path.sep).join('/');
+    const rel = fileNormalized.startsWith(baseNormalized)
+      ? fileNormalized.slice(baseNormalized.length).replace(/^\/+/, '')
+      : fileNormalized;
+    return regex.test(rel);
+  });
 }
 
 function globToRegExp(glob: string): RegExp {
