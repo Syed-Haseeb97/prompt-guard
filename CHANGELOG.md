@@ -5,6 +5,16 @@ All notable changes to `prompt-guard` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-21
+
+### Added
+- **FreeLLMAPI Provider**: Dedicated provider preset defaulting to `http://127.0.0.1:3001/v1` reading `FREELLMAPI_KEY` (with `OPENAI_API_KEY` fallback).
+- **`llm-judge` Assertion Engine**: Model-graded evaluation asserting qualitative requirements against an LLM judge returning `{ score: 0.0-1.0, reasoning: string }`. Supports global and per-assertion judge overrides.
+- **Result Caching**: Deterministic SHA-256 disk cache in `.prompt-guard/cache/` saving API quota and accelerating iterative suite runs. Controllable via `--no-cache` and `cache` config options.
+- **Dataset-Driven Test Suites**: Native support for bulk `.csv` and `.jsonl` files in `suite.dataset`, expanding rows into fixtures with template variable mapping.
+- **Provider Matrix CLI**: `--matrix <providers>` running prompt suites across multiple models and printing comparative cross-model scorecards (Total, Passed, Failed, Pass Rate, Avg Latency).
+- **Test Suite Expansion**: Added 13 new unit and integration tests covering Phase 3 features (now 266 tests passing).
+
 ## [1.0.0] - 2026-11-21
 
 ### Added

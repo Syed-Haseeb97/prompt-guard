@@ -28,6 +28,7 @@ import { VERSION } from '../version.js';
 import { renderTemplate } from './template.js';
 import { runAssertions } from './assertions/index.js';
 import type { AssertionContext, CustomValidator, EmbeddingFunction } from './assertions/types.js';
+import { ResultCache } from './cache.js';
 
 export type ProgressEvent =
   | { type: 'run-start'; total: number; suiteCount: number }
@@ -88,6 +89,10 @@ export interface EngineOptions {
   cwd?: string;
   /** Stop executing further fixtures after the first failure. */
   bail?: boolean;
+  /** Whether response caching is enabled. Defaults to config or true. */
+  cache?: boolean;
+  /** Custom judge function if provided directly. */
+  judge?: (req: { prompt: string; system?: string; model?: string; provider?: string }) => Promise<string>;
 }
 
 export interface EngineRunOptions {
@@ -172,12 +177,19 @@ export class RegressionEngine {
   private readonly logger: Logger;
   private readonly providerCache = new Map<string, Provider>();
   private readonly diagnostics: Diagnostic[] = [];
+  private readonly cache: ResultCache;
   /** Set when `bail` triggers and remaining fixtures must be skipped. */
   private aborted = false;
 
   constructor(options: EngineOptions) {
     this.options = options;
     this.logger = options.logger ?? silentLogger;
+    const cacheEnabled = options.cache ?? options.config.cache?.enabled ?? true;
+    this.cache = new ResultCache({
+      enabled: cacheEnabled,
+      dir: options.config.cache?.dir,
+      cwd: options.cwd,
+    });
   }
 
   private get config(): PromptGuardConfig {
@@ -213,6 +225,45 @@ export class RegressionEngine {
       this.providerCache.set(key, provider);
     }
     return { name, provider };
+  }
+
+  private getJudgeCaller(): (req: {
+    prompt: string;
+    system?: string;
+    model?: string;
+    provider?: string;
+  }) => Promise<string> {
+    return async (req) => {
+      const providerName =
+        req.provider ??
+        this.config.judge?.provider ??
+        this.options.providerName ??
+        this.config.defaultProvider;
+
+      const base = this.config.providers[providerName] ?? {
+        kind: 'mock' as const,
+        model: 'mock-deterministic-v1',
+        mock: { mode: 'hash' as const },
+      };
+
+      const judgeModel = req.model ?? this.config.judge?.model ?? base.model;
+
+      const judgeConfig: ProviderConfig = {
+        ...base,
+        model: judgeModel,
+      };
+
+      const provider = createProvider(judgeConfig, providerName);
+      const res = await provider.complete({
+        fixtureId: 'judge-evaluation',
+        system: req.system,
+        messages: [{ role: 'user', content: req.prompt }],
+        prompt: req.prompt,
+        model: judgeModel,
+      });
+
+      return res.text;
+    };
   }
 
   /** Build the variable scope for a fixture. */
@@ -344,22 +395,46 @@ export class RegressionEngine {
       if (resolved.frozenOutput !== undefined) {
         output = resolved.frozenOutput;
       } else {
-        const response = await this.executeWithRetry(
-          provider,
-          {
-            fixtureId: resolved.id,
-            system: renderedSystem,
-            messages: renderedMessages,
-            prompt: renderedUserPrompt,
-            model: resolved.model,
-            temperature: providerName ? this.config.providers[providerName]?.temperature : undefined,
-            maxTokens: providerName ? this.config.providers[providerName]?.maxTokens : undefined,
-            timeoutMs: resolved.timeoutMs,
-            mockResponse: resolved.mockResponse,
-          },
-          resolved.retries ?? 0,
-          resolved.timeoutMs ?? 30_000,
-        );
+        const requestPayload = {
+          fixtureId: resolved.id,
+          system: renderedSystem,
+          messages: renderedMessages,
+          prompt: renderedUserPrompt,
+          model: resolved.model,
+          temperature: providerName ? this.config.providers[providerName]?.temperature : undefined,
+          maxTokens: providerName ? this.config.providers[providerName]?.maxTokens : undefined,
+          timeoutMs: resolved.timeoutMs,
+          mockResponse: resolved.mockResponse,
+        };
+
+        const shouldCache =
+          this.cache.enabled && provider.kind !== 'mock' && provider.kind !== 'echo';
+        let response: any;
+
+        if (shouldCache) {
+          const cacheKey = this.cache.computeKey(provider.kind, requestPayload);
+          response = await this.cache.get(cacheKey);
+
+          if (response) {
+            this.logger.info(`cache hit for fixture ${resolved.id}`, 'PG_CACHE');
+          } else {
+            response = await this.executeWithRetry(
+              provider,
+              requestPayload,
+              resolved.retries ?? 0,
+              resolved.timeoutMs ?? 30_000,
+            );
+            await this.cache.set(cacheKey, response);
+          }
+        } else {
+          response = await this.executeWithRetry(
+            provider,
+            requestPayload,
+            resolved.retries ?? 0,
+            resolved.timeoutMs ?? 30_000,
+          );
+        }
+
         output = response.text;
         base.model = response.model ?? base.model;
         if (response.usage) {
@@ -380,6 +455,8 @@ export class RegressionEngine {
 
     base.output = output;
 
+    const judgeCaller = this.options.judge ?? this.getJudgeCaller();
+
     const context: AssertionContext = {
       output,
       fixture: resolved,
@@ -387,6 +464,7 @@ export class RegressionEngine {
       variables,
       validators: this.options.validators ?? new Map(),
       embed: this.options.embed,
+      judge: judgeCaller,
       logger: this.logger,
     };
 

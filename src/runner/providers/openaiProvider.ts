@@ -1,6 +1,7 @@
 import type {
   Provider,
   ProviderConfig,
+  ProviderKind,
   ProviderRequest,
   ProviderResponse,
 } from '../../core/types.js';
@@ -19,7 +20,7 @@ const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
  * format (Groq, Together, Ollama, LM Studio, vLLM, OpenRouter, ...).
  */
 export class OpenAiProvider implements Provider {
-  readonly kind = 'openai' as const;
+  readonly kind: ProviderKind = 'openai';
   readonly model?: string;
   private readonly config: ProviderConfig;
 

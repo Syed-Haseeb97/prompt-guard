@@ -133,3 +133,72 @@ export function renderFailures(report: RunReport, styler: Styler, limit = 20): s
 
   return lines.join('\n');
 }
+
+export interface MatrixRow {
+  provider: string;
+  model: string;
+  total: number;
+  passed: number;
+  failed: number;
+  passRate: number;
+  avgLatencyMs: number;
+}
+
+/** Render a cross-model matrix scorecard table. */
+export function renderMatrixScorecard(
+  rows: MatrixRow[],
+  styler: Styler,
+): string {
+  if (rows.length === 0) return '';
+
+  const headers = ['Provider', 'Model', 'Total', 'Passed', 'Failed', 'Pass Rate', 'Avg Latency'];
+  const formattedRows = rows.map((r) => [
+    r.provider,
+    r.model,
+    String(r.total),
+    String(r.passed),
+    String(r.failed),
+    `${(r.passRate * 100).toFixed(1)}%`,
+    `${Math.round(r.avgLatencyMs)}ms`,
+  ]);
+
+  const colWidths = headers.map((h, i) =>
+    Math.max(h.length, ...formattedRows.map((r) => r[i]?.length ?? 0)),
+  );
+
+  const topBorder = `┌─${colWidths.map((w) => '─'.repeat(w)).join('─┬─')}─┐`;
+  const midBorder = `├─${colWidths.map((w) => '─'.repeat(w)).join('─┼─')}─┤`;
+  const botBorder = `└─${colWidths.map((w) => '─'.repeat(w)).join('─┴─')}─┘`;
+
+  const headerRow = `│ ${headers.map((h, i) => styler.bold(padVisible(h, colWidths[i]!))).join(' │ ')} │`;
+
+  const dataRows = formattedRows.map((row, rowIdx) => {
+    const rawRate = rows[rowIdx]?.passRate ?? 0;
+    const rateColor = rawRate === 1 ? styler.green : rawRate >= 0.8 ? styler.yellow : styler.red;
+
+    const cells = row.map((cell, i) => {
+      const width = colWidths[i]!;
+      if (i === 5) {
+        return rateColor(padVisible(cell, width));
+      }
+      if (i >= 2) {
+        const pad = width - visibleWidth(cell);
+        return pad > 0 ? `${' '.repeat(pad)}${cell}` : cell;
+      }
+      return padVisible(cell, width);
+    });
+
+    return `│ ${cells.join(' │ ')} │`;
+  });
+
+  return [
+    '',
+    styler.bold('  Cross-Model Matrix Scorecard'),
+    `  ${topBorder}`,
+    `  ${headerRow}`,
+    `  ${midBorder}`,
+    ...dataRows.map((r) => `  ${r}`),
+    `  ${botBorder}`,
+    '',
+  ].join('\n');
+}

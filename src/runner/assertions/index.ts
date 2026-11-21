@@ -5,6 +5,7 @@ import { keywordsValidator } from './keywords.js';
 import { containsValidator, lengthValidator } from './misc.js';
 import { regexValidator } from './regex.js';
 import { semanticValidator } from './semantic.js';
+import { validateLlmJudge } from './llmJudge.js';
 import type { AssertionContext, AssertionValidator } from './types.js';
 
 export * from './types.js';
@@ -13,6 +14,7 @@ export * from './regex.js';
 export * from './keywords.js';
 export * from './jsonSchema.js';
 export * from './jsonExtract.js';
+export * from './llmJudge.js';
 
 /** Registry of the built-in assertion validators, keyed by assertion type. */
 export const BUILT_IN_VALIDATORS: Record<Assertion['type'], AssertionValidator> = {
@@ -23,6 +25,7 @@ export const BUILT_IN_VALIDATORS: Record<Assertion['type'], AssertionValidator> 
   contains: containsValidator,
   length: lengthValidator,
   custom: customValidator,
+  'llm-judge': validateLlmJudge,
 };
 
 /** The assertion types understood by prompt-guard. */

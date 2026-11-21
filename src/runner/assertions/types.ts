@@ -28,6 +28,8 @@ export interface AssertionContext {
   validators: Map<string, CustomValidator>;
   /** Optional embedding provider for semantic assertions. */
   embed?: EmbeddingFunction;
+  /** Optional LLM judge caller for model-graded evaluations. */
+  judge?: (req: { prompt: string; system?: string; model?: string; provider?: string }) => Promise<string>;
   /** Logger for diagnostics. */
   logger: Logger;
 }

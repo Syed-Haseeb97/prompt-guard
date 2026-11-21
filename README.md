@@ -3,7 +3,7 @@
 [![CI](https://github.com/Syed-Haseeb97/prompt-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/Syed-Haseeb97/prompt-guard/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/prompt-guard.svg)](https://www.npmjs.com/package/prompt-guard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 241 passed](https://img.shields.io/badge/tests-241%20passed-brightgreen.svg)](https://github.com/Syed-Haseeb97/prompt-guard)
+[![Tests: 266 passed](https://img.shields.io/badge/tests-266%20passed-brightgreen.svg)](https://github.com/Syed-Haseeb97/prompt-guard)
 
 **Regression testing and guardrails for LLM prompts.**
 
@@ -30,9 +30,11 @@ edit or a model upgrade broke.
   - [Project layout](#project-layout)
   - [Configuration](#configuration)
   - [Suites and fixtures](#suites-and-fixtures)
+  - [Dataset-driven test suites (CSV & JSONL)](#dataset-driven-test-suites-csv--jsonl)
   - [Providers](#providers)
   - [Benchmarks](#benchmarks)
 - [Assertion engines](#assertion-engines)
+  - [`llm-judge` — model-graded evaluation](#llm-judge--model-graded-evaluation)
   - [`semantic` — semantic similarity](#semantic--semantic-similarity)
   - [`jsonSchema` — JSON Schema validation](#jsonschema--json-schema-validation)
   - [`regex` — pattern matching](#regex--pattern-matching)
@@ -40,6 +42,8 @@ edit or a model upgrade broke.
   - [`contains` and `length`](#contains-and-length)
   - [`custom` — your own validator](#custom--your-own-validator)
 - [CLI reference](#cli-reference)
+  - [Matrix evaluation & cross-model scorecards](#matrix-evaluation--cross-model-scorecards)
+  - [Response caching](#response-caching)
 - [Run reports](#run-reports)
 - [Comparing runs](#comparing-runs)
 - [CI integration](#ci-integration)
@@ -327,11 +331,32 @@ Unknown variables are left untouched and reported as a warning.
 ] }
 ```
 
+### Dataset-driven test suites (CSV & JSONL)
+
+Expand bulk datasets (production query logs, golden datasets, CSV exports) into fixtures automatically using `dataset` and `fixtureTemplate`:
+
+```jsonc
+{
+  "name": "customer-queries",
+  "dataset": "./queries.csv",
+  "fixtureTemplate": {
+    "prompt": "{{query}}",
+    "system": "You are a customer service assistant.",
+    "assertions": [
+      { "type": "contains", "value": "support team" }
+    ]
+  }
+}
+```
+
+Supports both `.csv` and `.jsonl` files. Every row or object in the dataset is expanded into a fixture where columns/keys map directly to template variables and can be interpolated into `{{placeholders}}`.
+
 ### Providers
 
 | `kind` | Description |
 | --- | --- |
 | `mock` | Deterministic, offline. Modes: `hash` (default), `echo`, `rules`. |
+| `freellmapi` | FreeLLMAPI gateway (`http://127.0.0.1:3001/v1`), reads `FREELLMAPI_KEY` or `OPENAI_API_KEY`. |
 | `openai` | OpenAI-compatible `/v1/chat/completions` (OpenAI, Groq, Ollama, LM Studio, vLLM, OpenRouter…). |
 | `anthropic` | Anthropic Messages API. |
 | `http` | Any HTTP endpoint. Request body from a template, response read from a JSON path. |
@@ -415,6 +440,38 @@ process exits with code **3** and prints what was violated.
 Every assertion supports `name` (a label shown in reports), `severity`
 (`error` — the default — or `warn`, which reports but never fails a case) and
 `enabled` (set to `false` to disable an inherited assertion).
+
+### `llm-judge` — model-graded evaluation
+
+Use an LLM to evaluate complex outputs against a qualitative rubric:
+
+```jsonc
+{
+  "type": "llm-judge",
+  "name": "concise and polite explanation",
+  "rubric": "The response must clearly outline refund steps and maintain an empathetic, polite tone without technical jargon.",
+  "minScore": 0.8
+}
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `rubric` | — | Grading criteria describing what a satisfactory response must achieve. |
+| `minScore` | `0.7` | Threshold score between `0.0` and `1.0` required to pass. |
+| `provider` | config default | Provider override for the judge (e.g. `freellmapi`, `openai`). |
+| `model` | provider default | Model override for the judge. |
+| `promptTemplate` | default judge prompt | Custom judge prompt template if needed. |
+
+The judge prompt asks the model to emit a strict JSON verdict `{ "score": 0.0-1.0, "reasoning": "..." }`. Configure a dedicated judge globally in `prompt-guard.config.json`:
+
+```jsonc
+{
+  "judge": {
+    "provider": "freellmapi",
+    "model": "gemini-2.5-flash"
+  }
+}
+```
 
 ### `semantic` — semantic similarity
 
@@ -647,11 +704,47 @@ prompt-guard run [options]
 | `--label <name>` | Label stored in the report and the file name. |
 | `-o, --out <dir>` | Override the output directory. |
 | `-f, --format <list>` | `json,junit`. |
+| `--matrix <list>` | Execute suite across comma-separated providers (e.g. `openai,freellmapi`). |
+| `--no-cache` | Bypass local disk cache of model responses. |
 | `--bail` | Stop at the first failing case. |
 | `--json` | Print the raw run report JSON to stdout. |
 | `-q, --quiet` | Suppress the human readable output. |
 | `-v, --verbose` | Print diagnostics to stderr. |
 | `--color <mode>` | `auto`, `always`, `never`. |
+
+### Matrix evaluation & cross-model scorecards
+
+Benchmark prompts across multiple LLM providers simultaneously:
+
+```bash
+prompt-guard run --matrix openai,freellmapi
+```
+
+At the end of the run, a cross-model scorecard table summarizes comparative accuracy and latency:
+
+```
+  Cross-Model Matrix Scorecard
+  ┌────────────┬──────────────────┬───────┬────────┬────────┬───────────┬─────────────┐
+  │ Provider   │ Model            │ Total │ Passed │ Failed │ Pass Rate │ Avg Latency │
+  ├────────────┼──────────────────┼───────┼────────┼────────┼───────────┼─────────────┤
+  │ openai     │ gpt-4o-mini      │    12 │     12 │      0 │    100.0% │       380ms │
+  │ freellmapi │ gemini-2.5-flash │    12 │     11 │      1 │     91.7% │       210ms │
+  └────────────┴──────────────────┴───────┴────────┴────────┴───────────┴─────────────┘
+```
+
+### Response caching
+
+To prevent wasted API budget and accelerate iteration, model completions are cached to `.prompt-guard/cache/` keyed by a deterministic hash of prompt, system message, messages, temperature, and model.
+Pass `--no-cache` to force live API calls, or configure cache location in `prompt-guard.config.json`:
+
+```jsonc
+{
+  "cache": {
+    "enabled": true,
+    "dir": ".prompt-guard/cache"
+  }
+}
+```
 
 ### `prompt-guard compare <runA> <runB>`
 

@@ -14,7 +14,7 @@ export const DEFAULT_CONFIG_FILE = 'prompt-guard.config.json';
 
 export const providerConfigSchema = z
   .object({
-    kind: z.enum(['mock', 'openai', 'anthropic', 'http', 'echo']),
+    kind: z.enum(['mock', 'openai', 'anthropic', 'http', 'echo', 'freellmapi']),
     model: z.string().optional(),
     baseUrl: z.string().optional(),
     apiKeyEnv: z.string().optional(),
@@ -60,7 +60,7 @@ export const providerConfigSchema = z
 
 export const assertionSchema = z
   .object({
-    type: z.enum(['semantic', 'regex', 'jsonSchema', 'keywords', 'contains', 'length', 'custom']),
+    type: z.enum(['semantic', 'regex', 'jsonSchema', 'keywords', 'contains', 'length', 'custom', 'llm-judge']),
     name: z.string().optional(),
     severity: z.enum(['error', 'warn']).optional(),
     enabled: z.boolean().optional(),
@@ -96,6 +96,18 @@ const configSchema = z
     env: z.record(z.string()).optional(),
     color: z.enum(['auto', 'always', 'never']).default('auto'),
     bail: z.boolean().default(false),
+    judge: z
+      .object({
+        provider: z.string().optional(),
+        model: z.string().optional(),
+      })
+      .optional(),
+    cache: z
+      .object({
+        enabled: z.boolean().default(true),
+        dir: z.string().default('.prompt-guard/cache'),
+      })
+      .optional(),
   })
   .strict();
 

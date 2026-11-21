@@ -40,6 +40,8 @@ RUN OPTIONS
       --label <name>         Label stored in the run report
   -o, --out <dir>            Directory where run artefacts are written
   -f, --format <list>        Report formats: json,junit
+      --matrix <list>        Execute suite across comma-separated providers (e.g. openai,freellmapi)
+      --no-cache             Bypass disk caching of model responses
       --bail                 Stop at the first failing case
       --json                 Print the raw run report JSON to stdout
   -q, --quiet                Suppress the human readable output

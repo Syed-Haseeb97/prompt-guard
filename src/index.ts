@@ -14,6 +14,7 @@ export * from './core/logger.js';
 export * from './runner/regressionEngine.js';
 export * from './runner/suiteLoader.js';
 export * from './runner/template.js';
+export * from './runner/cache.js';
 
 export * from './runner/assertions/index.js';
 export * from './runner/assertions/types.js';
@@ -31,6 +32,6 @@ export { runInit } from './cli/commands/init.js';
 export { runRunCommand } from './cli/commands/run.js';
 export { runCompareCommand, compareOptionsFromArgs } from './cli/commands/compare.js';
 export { parseArgs, flagBoolean, flagList, flagNumber, flagString } from './cli/args.js';
-export { createOutputStyler, renderCaseLine, renderFailures, renderSummary } from './cli/output.js';
+export { createOutputStyler, renderCaseLine, renderFailures, renderSummary, renderMatrixScorecard } from './cli/output.js';
 
 export * from './version.js';

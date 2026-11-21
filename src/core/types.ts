@@ -18,7 +18,8 @@ export type ProviderKind =
   | 'openai'
   | 'anthropic'
   | 'http'
-  | 'echo';
+  | 'echo'
+  | 'freellmapi';
 
 export interface MockRule {
   /** Match against the rendered user prompt. */
@@ -143,7 +144,8 @@ export type AssertionType =
   | 'keywords'
   | 'contains'
   | 'length'
-  | 'custom';
+  | 'custom'
+  | 'llm-judge';
 
 export type AssertionSeverity = 'error' | 'warn';
 
@@ -252,6 +254,20 @@ export interface LengthAssertion extends BaseAssertion {
   tokenRatio?: number;
 }
 
+export interface LlmJudgeAssertion extends BaseAssertion {
+  type: 'llm-judge';
+  /** Rubric or grading instructions describing what a good output must satisfy. */
+  rubric: string;
+  /** Minimum score required to pass (0.0 to 1.0). Defaults to 0.7. */
+  minScore?: number;
+  /** Custom judge prompt template (optional). */
+  promptTemplate?: string;
+  /** Provider override for the judge (e.g. 'freellmapi' or 'openai'). */
+  provider?: string;
+  /** Model override for the judge. */
+  model?: string;
+}
+
 export interface CustomAssertion extends BaseAssertion {
   type: 'custom';
   /** Name of a validator registered on the engine. */
@@ -267,7 +283,8 @@ export type Assertion =
   | KeywordsAssertion
   | ContainsAssertion
   | LengthAssertion
-  | CustomAssertion;
+  | CustomAssertion
+  | LlmJudgeAssertion;
 
 export interface PromptFixture {
   /** Stable identifier, unique inside a suite. */
@@ -321,6 +338,10 @@ export interface TestSuite {
   version?: number;
   tags?: string[];
   defaults?: SuiteDefaults;
+  /** Optional dataset file path (.csv or .jsonl) to expand into fixtures. */
+  dataset?: string;
+  /** Template fixture when expanding a dataset into fixtures. */
+  fixtureTemplate?: Partial<PromptFixture>;
   fixtures: PromptFixture[];
 }
 
@@ -371,6 +392,16 @@ export interface PromptGuardConfig {
   color?: 'auto' | 'always' | 'never';
   /** Fail the process when any case fails. Defaults to true. */
   bail?: boolean;
+  /** Dedicated judge provider/model configuration for model-graded assertions. */
+  judge?: {
+    provider?: string;
+    model?: string;
+  };
+  /** Disk cache options for provider responses. */
+  cache?: {
+    enabled?: boolean;
+    dir?: string;
+  };
 }
 
 export interface ResolvedProvider extends ProviderConfig {

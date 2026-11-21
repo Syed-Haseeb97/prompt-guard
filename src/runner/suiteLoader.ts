@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { promises as fs } from 'node:fs';
 import { z } from 'zod';
 import { SuiteError } from '../core/errors.js';
 import type {
@@ -11,6 +12,7 @@ import type {
 import { expandGlob, readJsonFile } from '../utils/fs.js';
 import { hashObject } from '../utils/hash.js';
 import { assertionSchema } from '../core/config.js';
+import { renderTemplate } from './template.js';
 
 const messageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
@@ -59,7 +61,9 @@ const suiteSchema = z
         system: z.string().optional(),
       })
       .optional(),
-    fixtures: z.array(fixtureSchema),
+    dataset: z.string().optional(),
+    fixtureTemplate: fixtureSchema.partial().optional(),
+    fixtures: z.array(fixtureSchema).default([]),
   })
   .strict();
 
@@ -67,6 +71,167 @@ export interface LoadedSuite {
   suite: TestSuite;
   /** Absolute path of the file the suite was read from. */
   filePath: string;
+}
+
+/** Lightweight CSV parser supporting quoted strings with commas and escaped quotes. */
+export function parseCsv(text: string): Array<Record<string, string>> {
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  if (!clean) return [];
+
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    const nextChar = clean[i + 1];
+
+    if (insideQuotes) {
+      if (char === '"' && nextChar === '"') {
+        currentField += '"';
+        i += 1;
+      } else if (char === '"') {
+        insideQuotes = false;
+      } else {
+        currentField += char;
+      }
+    } else {
+      if (char === '"') {
+        insideQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\r') {
+        // ignore CR
+      } else if (char === '\n') {
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+  }
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    rows.push(currentRow);
+  }
+
+  if (rows.length < 2) return [];
+  const headers = rows[0]!.map((h) => h.replace(/^["']|["']$/g, '').trim());
+  const results: Array<Record<string, string>> = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r]!;
+    if (row.length === 1 && row[0] === '') continue;
+    const record: Record<string, string> = {};
+    for (let c = 0; c < headers.length; c++) {
+      const header = headers[c];
+      if (header) {
+        record[header] = row[c] ?? '';
+      }
+    }
+    results.push(record);
+  }
+
+  return results;
+}
+
+/** Lightweight JSONL parser. */
+export function parseJsonl(text: string): Array<Record<string, unknown>> {
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  if (!clean) return [];
+  const lines = clean.split('\n');
+  const results: Array<Record<string, unknown>> = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null) {
+        results.push(parsed as Record<string, unknown>);
+      }
+    } catch {
+      // skip invalid lines
+    }
+  }
+  return results;
+}
+
+/** Expand raw dataset rows into full PromptFixtures based on a template. */
+export function expandDatasetRows(
+  rows: Array<Record<string, unknown>>,
+  template: Partial<PromptFixture> = {},
+): PromptFixture[] {
+  return rows.map((row, index) => {
+    const stringVars: Record<string, string> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (v !== undefined && v !== null) {
+        stringVars[k] = String(v);
+      }
+    }
+
+    const id = row.id
+      ? String(row.id)
+      : template.id
+        ? renderTemplate(template.id, stringVars).text
+        : `row-${index + 1}`;
+
+    const title = row.title
+      ? String(row.title)
+      : template.title
+        ? renderTemplate(template.title, stringVars).text
+        : undefined;
+
+    const description = row.description
+      ? String(row.description)
+      : template.description
+        ? renderTemplate(template.description, stringVars).text
+        : undefined;
+
+    const system = row.system
+      ? String(row.system)
+      : template.system;
+
+    let prompt: string | PromptMessage[];
+    if (row.prompt) {
+      prompt = String(row.prompt);
+    } else if (template.prompt) {
+      prompt = template.prompt;
+    } else {
+      prompt = '';
+    }
+
+    const mergedVariables: Record<string, string | number | boolean> = {
+      ...(template.variables ?? {}),
+    };
+    for (const [k, v] of Object.entries(row)) {
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+        mergedVariables[k] = v;
+      }
+    }
+
+    return {
+      id,
+      title,
+      description,
+      system,
+      prompt,
+      variables: mergedVariables,
+      tags: template.tags,
+      assertions: template.assertions,
+      provider: template.provider,
+      model: template.model,
+      timeoutMs: template.timeoutMs,
+      retries: template.retries,
+      metadata: template.metadata,
+      skip: template.skip,
+      mockResponse: row.mockResponse ? String(row.mockResponse) : template.mockResponse,
+      frozenOutput: row.frozenOutput ? String(row.frozenOutput) : template.frozenOutput,
+    };
+  });
 }
 
 /** Validate a parsed suite file. */
@@ -155,6 +320,35 @@ export async function loadSuites(
       const raw = await readJsonFile<unknown>(file);
       const suite = validateSuite(raw, file);
       if (nameOverride) suite.name = nameOverride;
+
+      if (suite.dataset) {
+        const datasetPath = path.resolve(path.dirname(file), suite.dataset);
+        try {
+          const content = await fs.readFile(datasetPath, 'utf8');
+          const isJsonl = datasetPath.endsWith('.jsonl');
+          const rows = isJsonl ? parseJsonl(content) : parseCsv(content);
+          const expanded = expandDatasetRows(rows, suite.fixtureTemplate);
+          suite.fixtures = [...suite.fixtures, ...expanded];
+        } catch (err) {
+          throw new SuiteError(
+            `Failed to load dataset "${suite.dataset}" for suite "${suite.name}": ${(err as Error).message}`,
+            { source: file },
+          );
+        }
+      }
+
+      // Re-verify uniqueness of fixture IDs after dataset expansion
+      const seenIds = new Set<string>();
+      for (const fixture of suite.fixtures) {
+        if (seenIds.has(fixture.id)) {
+          throw new SuiteError(
+            `Duplicate fixture id "${fixture.id}" in suite "${suite.name}" (${file})`,
+            { source: file, fixtureId: fixture.id },
+          );
+        }
+        seenIds.add(fixture.id);
+      }
+
       loaded.push({ suite, filePath: file });
     }
   }
